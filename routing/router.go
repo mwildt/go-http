@@ -76,9 +76,9 @@ func (r Router) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	}
 }
 
-type RoutingConfiguration func(router Router)
+type RouterConfigurer func(router Router)
 
-func CreateRoutingHandler(configuration RoutingConfiguration) http.Handler {
+func CreateRoutingHandler(configuration RouterConfigurer) http.Handler {
 	router := Router{}
 	configuration(router)
 	return &router
