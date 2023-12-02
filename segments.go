@@ -1,0 +1,80 @@
+package http_utils
+
+import "strings"
+
+type Parameters map[string]string
+
+type Segment struct {
+	value string
+}
+
+func (seg Segment) IsParam() (is bool, name string) {
+	if strings.HasPrefix(seg.value, "{") && strings.HasSuffix(seg.value, "}") {
+		return true, seg.value[1 : len(seg.value)-2]
+	} else {
+		return false, seg.value
+	}
+}
+
+func (seg Segment) IsWildcard() bool {
+	return seg.value == "*"
+}
+
+func (seg Segment) IsGlobalWildcard() bool {
+	return seg.value == "**"
+}
+
+type Segments []Segment
+
+func NewSegments(template string) (segments Segments) {
+	for _, value := range strings.Split(template, "/") {
+		segments = append(segments, Segment{value})
+	}
+	return segments
+}
+
+func (segments Segments) Compare(path UriPath) (match bool, matched UriPath, params Parameters) {
+	return compare(segments, path)
+}
+
+type UriPath []string
+
+func NewUriPath(path string) UriPath {
+	return strings.Split(path, "/")
+}
+
+func compare(segments Segments, path UriPath) (match bool, matched UriPath, params Parameters) {
+	if len(segments) == 0 {
+		return len(path) == 0, matched, make(Parameters)
+	}
+
+	if len(path) == 0 {
+		return false, matched, make(Parameters)
+	}
+
+	if param, paramName := segments[0].IsParam(); param {
+		if len(path[0]) == 0 {
+			// a parameter always needs do have a non empty value
+			return false, matched, params
+		}
+
+		match, matched, params = compare(segments[1:], path[1:])
+		params[paramName] = path[0]
+		return match, append(path[0:1], matched...), params
+
+	} else if segments[0].IsWildcard() {
+		match, matched, params = compare(segments[1:], path[1:])
+		return match, append(path[0:1], matched...), params
+
+	} else if segments[0].IsGlobalWildcard() {
+		return true, path, make(Parameters)
+
+	} else if segments[0].value == path[0] {
+		match, matched, params = compare(segments[1:], path[1:])
+		return match, append(path[0:1], matched...), params
+
+	} else {
+		// no match
+		return false, matched, params
+	}
+}
