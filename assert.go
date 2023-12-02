@@ -1,4 +1,4 @@
-package http_utils
+package go_http
 
 import (
 	"runtime"

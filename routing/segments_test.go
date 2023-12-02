@@ -1,7 +1,7 @@
 package routing
 
 import (
-	"github.com/ohrenpiraten/go-http"
+	http_utils "github.com/mwildt/go-http"
 	"testing"
 )
 
