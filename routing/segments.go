@@ -10,7 +10,7 @@ type Segment struct {
 
 func (seg Segment) IsParam() (is bool, name string) {
 	if strings.HasPrefix(seg.value, "{") && strings.HasSuffix(seg.value, "}") {
-		return true, seg.value[1 : len(seg.value)-2]
+		return true, seg.value[1 : len(seg.value)-1]
 	} else {
 		return false, seg.value
 	}

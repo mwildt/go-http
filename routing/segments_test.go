@@ -54,11 +54,11 @@ func TestNoMatches(t *testing.T) {
 	http_utils.Assert(t, !match, "match where no wanted")
 
 	// ein parameter muss einen wert haben? JA
-	match, _, _ = compare(NewSegments("/api/{id}}"), NewUriPath("/api/"))
+	match, _, _ = compare(NewSegments("/api/{id}"), NewUriPath("/api/"))
 	http_utils.Assert(t, !match, "match where no wanted")
 
 	// ein parameter muss einen wert haben? JA
-	match, _, _ = compare(NewSegments("/api/{id}}/suffix"), NewUriPath("/api//suffix"))
+	match, _, _ = compare(NewSegments("/api/{id}/suffix"), NewUriPath("/api//suffix"))
 	http_utils.Assert(t, !match, "match where no wanted")
 
 	match, _, _ = compare(NewSegments("/*"), NewUriPath("/only/first/is/matched"))
@@ -71,7 +71,7 @@ func TestParameterExtraction(t *testing.T) {
 	_, _, params := compare(NewSegments("/api/context"), NewUriPath("/api/context"))
 	http_utils.Assert(t, len(params) == 0, "parmas error")
 
-	_, _, params = compare(NewSegments("/api/{id}}"), NewUriPath("/api/123"))
+	_, _, params = compare(NewSegments("/api/{id}"), NewUriPath("/api/123"))
 	http_utils.Assert(t, params["id"] == "123", "parmas error")
 
 	_, _, params = compare(NewSegments("/api/{id}}"), NewUriPath("/api/"))
