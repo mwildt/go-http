@@ -2,8 +2,33 @@ package routing
 
 import (
 	"context"
+	"log"
 	"net/http"
 )
+
+type contextKey string
+
+const (
+	contextParams = contextKey("router.http.params")
+)
+
+func WithParameters(c context.Context, parameters Parameters) context.Context {
+	return context.WithValue(c, contextParams, parameters)
+}
+
+func GetParameters(c context.Context) Parameters {
+	if value := c.Value(contextParams); value != nil {
+		return value.(Parameters)
+	} else {
+		return make(Parameters)
+	}
+}
+
+func GetParameter(c context.Context, key string) (string, bool) {
+	params := GetParameters(c)
+	value, exists := params[key]
+	return value, exists
+}
 
 type Methods []string
 
@@ -17,6 +42,27 @@ func (methods Methods) Compare(method string) (match bool) {
 		}
 	}
 	return false
+}
+
+func (methods Methods) Extend(methods2 Methods) Methods {
+	if len(methods) == 0 {
+		return methods2
+	} else if len(methods2) == 0 {
+		return methods
+	} else {
+		response := make(Methods, 0)
+		for _, m1 := range methods {
+			for _, m2 := range methods2 {
+				if m1 == m2 {
+					response = append(response, m1)
+				}
+			}
+		}
+		if len(response) == 0 {
+			log.Fatal("illegal routing configuration")
+		}
+		return response
+	}
 }
 
 type Matcher struct {
@@ -46,6 +92,14 @@ func (m Matcher) Method(methods ...string) Matcher {
 	return m
 }
 
+func (m Matcher) extend(matcher Matcher) Matcher {
+
+	return Matcher{
+		path:    m.path.Extend(matcher.path),
+		methods: m.methods.Extend(matcher.methods),
+	}
+}
+
 type Route struct {
 	matcher     Matcher
 	handlerFunc http.HandlerFunc
@@ -55,31 +109,77 @@ type Router struct {
 	routes []Route
 }
 
-func (r Router) HandleFunc(matcher Matcher, handlerFunc http.HandlerFunc) {
-	r.routes = append(r.routes, Route{matcher: matcher, handlerFunc: handlerFunc})
+type Routing interface {
+	HandleFunc(matcher Matcher, handlerFunc http.HandlerFunc)
+	Handle(matcher Matcher, handler http.Handler)
+	Route(matcher Matcher, configurations ...RoutingConsumer) Routing
 }
 
-func (r Router) Handle(matcher Matcher, handler http.Handler) {
-	r.routes = append(r.routes, Route{matcher: matcher, handlerFunc: handler.ServeHTTP})
+type RoutingConsumer func(router Routing)
+
+func NewRouter(configurations ...RoutingConsumer) *Router {
+	router := &Router{}
+	for _, configuration := range configurations {
+		configuration(router)
+	}
+	return router
 }
 
-func (r Router) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+func (r *Router) HandleFunc(matcher Matcher, handlerFunc http.HandlerFunc) {
+	r.addRoute(Route{matcher: matcher, handlerFunc: handlerFunc})
+}
+
+func (r *Router) Handle(matcher Matcher, handler http.Handler) {
+	r.addRoute(Route{matcher: matcher, handlerFunc: handler.ServeHTTP})
+}
+
+func (r *Router) Route(matcher Matcher, conf ...RoutingConsumer) Routing {
+	return &subrouter{
+		router:  r,
+		matcher: matcher,
+	}
+}
+
+func (r *Router) addRoute(route Route) {
+	r.routes = append(r.routes, route)
+}
+
+func (r *Router) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	for _, route := range r.routes {
 		if match, _, params := route.matcher.path.Compare(NewUriPath(request.URL.Path)); !match {
 			continue
 		} else if !route.matcher.methods.Compare(request.Method) {
 			continue
 		} else {
-			route.handlerFunc.ServeHTTP(writer, request.WithContext(context.WithValue(request.Context(), "http.path.params", params)))
+			route.handlerFunc.ServeHTTP(writer, request.WithContext(WithParameters(request.Context(), params)))
 			return
 		}
 	}
 }
 
-type RouterConfigurer func(router Router)
+func DefaultNotFound() RoutingConsumer {
+	return func(router Routing) {
+		router.HandleFunc(Path("/**"), http.NotFound)
+	}
+}
 
-func CreateRoutingHandler(configuration RouterConfigurer) http.Handler {
-	router := Router{}
-	configuration(router)
-	return &router
+type subrouter struct {
+	router  *Router
+	matcher Matcher
+}
+
+func (r *subrouter) HandleFunc(matcher Matcher, handlerFunc http.HandlerFunc) {
+	r.router.addRoute(Route{matcher: r.matcher.extend(matcher), handlerFunc: handlerFunc})
+}
+
+func (r *subrouter) Handle(matcher Matcher, handler http.Handler) {
+	r.router.addRoute(Route{matcher: r.matcher.extend(matcher), handlerFunc: handler.ServeHTTP})
+}
+
+func (r *subrouter) Route(matcher Matcher, configurations ...RoutingConsumer) Routing {
+	router := &subrouter{r.router, r.matcher.extend(matcher)}
+	for _, configuration := range configurations {
+		configuration(router)
+	}
+	return router
 }

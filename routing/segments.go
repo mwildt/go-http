@@ -24,6 +24,16 @@ func (seg Segment) IsGlobalWildcard() bool {
 	return seg.value == "**"
 }
 
+func (seg Segment) Print(params map[string]string) string {
+	if isParam, paramName := seg.IsParam(); isParam {
+		return params[paramName]
+	} else if seg.IsWildcard() || seg.IsGlobalWildcard() {
+		return ""
+	} else {
+		return seg.value
+	}
+}
+
 type Segments []Segment
 
 func NewSegments(template string) (segments Segments) {
@@ -35,6 +45,26 @@ func NewSegments(template string) (segments Segments) {
 
 func (segments Segments) Compare(path UriPath) (match bool, matched UriPath, params Parameters) {
 	return compare(segments, path)
+}
+
+func (segments Segments) String() string {
+	res := make([]string, 0)
+	for _, segment := range segments {
+		res = append(res, segment.value)
+	}
+	return strings.Join(res, "/")
+}
+
+func (segments Segments) Print(params map[string]string) string {
+	uriPath := make(UriPath, 0)
+	for _, segment := range segments {
+		uriPath = append(uriPath, segment.Print(params))
+	}
+	return strings.Join(uriPath, "/")
+}
+
+func (segments Segments) Extend(path Segments) Segments {
+	return NewSegments(segments.String() + path.String())
 }
 
 type UriPath []string
