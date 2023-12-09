@@ -82,6 +82,26 @@ func Method(methods ...string) Matcher {
 	return NewMatcher().Method(methods...)
 }
 
+func (m Matcher) Get(path string) Matcher {
+	return Method("GET").Path(path)
+}
+
+func (m Matcher) Post(path string) Matcher {
+	return Method("POST").Path(path)
+}
+
+func (m Matcher) Patch(path string) Matcher {
+	return Method("PATCH").Path(path)
+}
+
+func (m Matcher) Put(path string) Matcher {
+	return Method("PUT").Path(path)
+}
+
+func (m Matcher) Delete(path string) Matcher {
+	return Method("DELETE").Path(path)
+}
+
 func (m Matcher) Path(path string) Matcher {
 	m.path = NewSegments(path)
 	return m
