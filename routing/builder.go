@@ -7,7 +7,7 @@ type RouteBuilder struct {
 }
 
 func NewRouteBuilder() RouteBuilder {
-	return RouteBuilder{path: NewSegments("/**"), methods: make(Methods, 0), filterChain: FilterChain{}}
+	return RouteBuilder{path: Segments{}, methods: make(Methods, 0), filterChain: FilterChain{}}
 }
 
 func (builder RouteBuilder) extend(extension RouteBuilder) RouteBuilder {
