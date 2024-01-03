@@ -14,12 +14,10 @@ func main() {
 
         router.Handle(
             routing.Path("/**").Method("GET"),
-            http.FileServer(http.Dir("frontend/build")))
+            http.FileServer(http.Dir("/static/")))
 
     })
 
-    err = http.ListenAndServe(
-        GetEnvOrDefault("LISTEN_ADDRESS", ":3010"),
-        router)
+    err = http.ListenAndServe(":8080", router)
 }
 ```

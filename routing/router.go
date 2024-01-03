@@ -106,11 +106,15 @@ func (r *Router) Handle(routeBuilder RouteBuilder, handler http.Handler) {
 	r.addRoute(Route{matcher: routeBuilder.createMatcher(), handlerFunc: handler.ServeHTTP})
 }
 
-func (r *Router) Route(matcher RouteBuilder, conf ...RoutingConsumer) Routing {
-	return &subrouter{
+func (r *Router) Route(matcher RouteBuilder, configurations ...RoutingConsumer) Routing {
+	router := &subrouter{
 		router:       r,
 		routeBuilder: matcher,
 	}
+	for _, configuration := range configurations {
+		configuration(router)
+	}
+	return router
 }
 
 func (r *Router) addRoute(route Route) {

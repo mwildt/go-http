@@ -31,6 +31,20 @@ func TestSubRouting(t *testing.T) {
 	go_http.Assert(t, recorder.Code == 418, "unexpected response status %d", recorder.Code)
 }
 
+func TestSubRoutingConsume(t *testing.T) {
+	router := NewRouter()
+	router.Route(NewRouteBuilder(), func(r Routing) {
+		r.HandleFunc(Get("/api/test"), func(writer http.ResponseWriter, request *http.Request) {
+			writer.Write([]byte("TEST"))
+		})
+	})
+
+	req := httptest.NewRequest("GET", "http://example.com/api/test", nil)
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+	go_http.Assert(t, recorder.Body.String() == "TEST", "unexpected response body %s", recorder.Body.String())
+}
+
 func TestSubRoutingParameters(t *testing.T) {
 	router := NewRouter()
 	router.Route(Path("/routing/{contextId}")).HandleFunc(Path("/sub/{id}"), func(writer http.ResponseWriter, request *http.Request) {
