@@ -65,63 +65,13 @@ func (methods Methods) Extend(methods2 Methods) Methods {
 	}
 }
 
-type Matcher struct {
+type matcher struct {
 	path    Segments
 	methods Methods
 }
 
-func NewMatcher() Matcher {
-	return Matcher{path: NewSegments("/**"), methods: make(Methods, 0)}
-}
-
-func Path(path string) Matcher {
-	return NewMatcher().Path(path)
-}
-
-func Method(methods ...string) Matcher {
-	return NewMatcher().Method(methods...)
-}
-
-func Get(path string) Matcher {
-	return Method("GET").Path(path)
-}
-
-func Post(path string) Matcher {
-	return Method("POST").Path(path)
-}
-
-func Patch(path string) Matcher {
-	return Method("PATCH").Path(path)
-}
-
-func Put(path string) Matcher {
-	return Method("PUT").Path(path)
-}
-
-func Delete(path string) Matcher {
-	return Method("DELETE").Path(path)
-}
-
-func (m Matcher) Path(path string) Matcher {
-	m.path = NewSegments(path)
-	return m
-}
-
-func (m Matcher) Method(methods ...string) Matcher {
-	m.methods = methods
-	return m
-}
-
-func (m Matcher) extend(matcher Matcher) Matcher {
-
-	return Matcher{
-		path:    m.path.Extend(matcher.path),
-		methods: m.methods.Extend(matcher.methods),
-	}
-}
-
 type Route struct {
-	matcher     Matcher
+	matcher     matcher
 	handlerFunc http.HandlerFunc
 }
 
@@ -130,9 +80,9 @@ type Router struct {
 }
 
 type Routing interface {
-	HandleFunc(matcher Matcher, handlerFunc http.HandlerFunc)
-	Handle(matcher Matcher, handler http.Handler)
-	Route(matcher Matcher, configurations ...RoutingConsumer) Routing
+	HandleFunc(builder RouteBuilder, handlerFunc http.HandlerFunc)
+	Handle(builder RouteBuilder, handler http.Handler)
+	Route(builder RouteBuilder, configurations ...RoutingConsumer) Routing
 }
 
 type RoutingConsumer func(router Routing)
@@ -145,18 +95,21 @@ func NewRouter(configurations ...RoutingConsumer) *Router {
 	return router
 }
 
-func (r *Router) HandleFunc(matcher Matcher, handlerFunc http.HandlerFunc) {
-	r.addRoute(Route{matcher: matcher, handlerFunc: handlerFunc})
+func (r *Router) HandleFunc(routeBuilder RouteBuilder, handlerFunc http.HandlerFunc) {
+	r.addRoute(Route{
+		matcher:     routeBuilder.createMatcher(),
+		handlerFunc: routeBuilder.filterChain.Build(handlerFunc),
+	})
 }
 
-func (r *Router) Handle(matcher Matcher, handler http.Handler) {
-	r.addRoute(Route{matcher: matcher, handlerFunc: handler.ServeHTTP})
+func (r *Router) Handle(routeBuilder RouteBuilder, handler http.Handler) {
+	r.addRoute(Route{matcher: routeBuilder.createMatcher(), handlerFunc: handler.ServeHTTP})
 }
 
-func (r *Router) Route(matcher Matcher, conf ...RoutingConsumer) Routing {
+func (r *Router) Route(matcher RouteBuilder, conf ...RoutingConsumer) Routing {
 	return &subrouter{
-		router:  r,
-		matcher: matcher,
+		router:       r,
+		routeBuilder: matcher,
 	}
 }
 
@@ -184,20 +137,24 @@ func DefaultNotFound() RoutingConsumer {
 }
 
 type subrouter struct {
-	router  *Router
-	matcher Matcher
+	router       *Router
+	routeBuilder RouteBuilder
 }
 
-func (r *subrouter) HandleFunc(matcher Matcher, handlerFunc http.HandlerFunc) {
-	r.router.addRoute(Route{matcher: r.matcher.extend(matcher), handlerFunc: handlerFunc})
+func (r *subrouter) HandleFunc(builder RouteBuilder, handlerFunc http.HandlerFunc) {
+	extendBuilder := r.routeBuilder.extend(builder)
+	r.router.addRoute(Route{
+		matcher:     extendBuilder.createMatcher(),
+		handlerFunc: extendBuilder.filterChain.Build(handlerFunc),
+	})
 }
 
-func (r *subrouter) Handle(matcher Matcher, handler http.Handler) {
-	r.router.addRoute(Route{matcher: r.matcher.extend(matcher), handlerFunc: handler.ServeHTTP})
+func (r *subrouter) Handle(builder RouteBuilder, handler http.Handler) {
+	r.HandleFunc(builder, handler.ServeHTTP)
 }
 
-func (r *subrouter) Route(matcher Matcher, configurations ...RoutingConsumer) Routing {
-	router := &subrouter{r.router, r.matcher.extend(matcher)}
+func (r *subrouter) Route(builder RouteBuilder, configurations ...RoutingConsumer) Routing {
+	router := &subrouter{r.router, r.routeBuilder.extend(builder)}
 	for _, configuration := range configurations {
 		configuration(router)
 	}
