@@ -85,7 +85,7 @@ func compare(segments Segments, path UriPath) (match bool, matched UriPath, para
 	if param, paramName := segments[0].IsParam(); param {
 		if len(path[0]) == 0 {
 			// a parameter always needs do have a non empty value
-			return false, matched, params
+			return false, matched, make(Parameters)
 		}
 
 		match, matched, params = compare(segments[1:], path[1:])
@@ -105,6 +105,6 @@ func compare(segments Segments, path UriPath) (match bool, matched UriPath, para
 
 	} else {
 		// no match
-		return false, matched, params
+		return false, matched, make(Parameters)
 	}
 }

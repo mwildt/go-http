@@ -127,3 +127,26 @@ func TestRoutingWithMulltipleFilters(t *testing.T) {
 	go_http.Assert(t, logs[1] == "b", "unexpected 1st log statement", len(logs[1]))
 	go_http.Assert(t, logs[2] == "c", "unexpected 2nd log statement", len(logs[2]))
 }
+
+func TestRoutingWithAlternatives(t *testing.T) {
+	router := NewRouter()
+
+	handler := func(status int, responseValue string) http.HandlerFunc {
+		return func(writer http.ResponseWriter, request *http.Request) {
+			writer.WriteHeader(status)
+			writer.Write([]byte(responseValue))
+		}
+	}
+
+	router.HandleFunc(Patch("/routing/{id}/sub1"), handler(210, "sub1"))
+	router.HandleFunc(Patch("/routing/{id}/sub2"), handler(211, "sub2"))
+
+	req := httptest.NewRequest("PATCH", "http://example.com/routing/abc/sub2", nil)
+
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+
+	go_http.Assert(t, recorder.Code == 211, "unexpected status code '%d'", recorder.Code)
+	go_http.Assert(t, recorder.Body.String() == "sub2", "unexpected response body '%s'", recorder.Body.String())
+
+}
