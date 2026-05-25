@@ -64,9 +64,9 @@ func TestRoutingWithFilterInSubrouting(t *testing.T) {
 
 	var logs []string
 
-	logFilter := func(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
+	logFilter := func(w http.ResponseWriter, r *http.Request, next http.Handler) {
 		logs = append(logs, r.URL.String())
-		next(w, r)
+		next.ServeHTTP(w, r)
 	}
 	router.Route(Path("/routing/test").Filter(logFilter)).HandleFunc(Path("/sub/test"), func(writer http.ResponseWriter, request *http.Request) {
 		writer.Write([]byte("EXECUTED"))
@@ -85,9 +85,9 @@ func TestRoutingWithFilter(t *testing.T) {
 
 	var logs []string
 
-	logFilter := func(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
+	logFilter := func(w http.ResponseWriter, r *http.Request, next http.Handler) {
 		logs = append(logs, r.URL.String())
-		next(w, r)
+		next.ServeHTTP(w, r)
 	}
 
 	router.HandleFunc(Path("/routing/test").Filter(logFilter), func(writer http.ResponseWriter, request *http.Request) {
@@ -108,9 +108,9 @@ func TestRoutingWithMulltipleFilters(t *testing.T) {
 	var logs []string
 
 	logFilter := func(value string) Filter {
-		return func(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
+		return func(w http.ResponseWriter, r *http.Request, next http.Handler) {
 			logs = append(logs, value)
-			next(w, r)
+			next.ServeHTTP(w, r)
 		}
 	}
 
