@@ -44,15 +44,11 @@ type Segments []Segment
 
 // NewSegments creates a Segments slice from a URL path template.
 // Example: NewSegments("/api/{id}") returns ["api", "{id}"].
-// Empty segments are preserved except for trailing empty segments.
 func NewSegments(template string) (segments Segments) {
-	parts := strings.Split(template, "/")
-	for i := 0; i < len(parts); i++ {
-		// Skip trailing empty segments
-		if i == len(parts)-1 && parts[i] == "" {
-			continue
+	for _, value := range strings.Split(template, "/") {
+		if value != "" { // Skip empty segments
+			segments = append(segments, Segment{value})
 		}
-		segments = append(segments, Segment{parts[i]})
 	}
 	return segments
 }
@@ -92,7 +88,7 @@ func (segments Segments) Extend(path Segments) Segments {
 type UriPath []string
 
 // NewUriPath creates a UriPath from a URL path string.
-// Empty segments are preserved to allow strict matching.
+// Empty segments are preserved to allow validation in compare().
 func NewUriPath(path string) UriPath {
 	parts := strings.Split(path, "/")
 	result := make(UriPath, 0)
