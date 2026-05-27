@@ -44,10 +44,15 @@ type Segments []Segment
 
 // NewSegments creates a Segments slice from a URL path template.
 // Example: NewSegments("/api/{id}") returns ["api", "{id}"].
-// Empty segments are preserved to maintain consistency with NewUriPath().
+// Empty segments are preserved except for trailing empty segments.
 func NewSegments(template string) (segments Segments) {
-	for _, value := range strings.Split(template, "/") {
-		segments = append(segments, Segment{value})
+	parts := strings.Split(template, "/")
+	for i := 0; i < len(parts); i++ {
+		// Skip trailing empty segments
+		if i == len(parts)-1 && parts[i] == "" {
+			continue
+		}
+		segments = append(segments, Segment{parts[i]})
 	}
 	return segments
 }
@@ -87,11 +92,15 @@ func (segments Segments) Extend(path Segments) Segments {
 type UriPath []string
 
 // NewUriPath creates a UriPath from a URL path string.
-// Empty segments are preserved to allow validation in compare().
+// Empty segments are preserved except for trailing empty segments.
 func NewUriPath(path string) UriPath {
 	parts := strings.Split(path, "/")
 	result := make(UriPath, 0)
-	for _, part := range parts {
+	for i := 0; i < len(parts); i++ {
+		// Skip trailing empty segments
+		if i == len(parts)-1 && parts[i] == "" {
+			continue
+		}
 		result = append(result, part)
 	}
 	return result
@@ -155,13 +164,6 @@ func compare(segments Segments, path UriPath) (match bool, matched UriPath, para
 			return false, matched, params
 		}
 	}
-	// Skip trailing empty segments in both segments and path
-	for i < len(segments) && len(segments[i].value) == 0 {
-		i++
-	}
-	for j < len(path) && len(path[j]) == 0 {
-		j++
-	}
-	// Check if we consumed all segments and path parts
+	// Check if we consumed all segments and path parts (no skipping of trailing empty segments)
 	return i == len(segments) && j == len(path), matched, params
 }
