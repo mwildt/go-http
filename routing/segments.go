@@ -92,15 +92,11 @@ func (segments Segments) Extend(path Segments) Segments {
 type UriPath []string
 
 // NewUriPath creates a UriPath from a URL path string.
-// Empty segments are preserved except for trailing empty segments.
+// Empty segments are preserved to allow strict matching.
 func NewUriPath(path string) UriPath {
 	parts := strings.Split(path, "/")
 	result := make(UriPath, 0)
-	for i := 0; i < len(parts); i++ {
-		// Skip trailing empty segments
-		if i == len(parts)-1 && parts[i] == "" {
-			continue
-		}
+	for _, part := range parts {
 		result = append(result, part)
 	}
 	return result
