@@ -61,6 +61,10 @@ func TestNoMatches(t *testing.T) {
 	match, _, _ = compare(NewSegments("/api/{id}/suffix"), NewUriPath("/api//suffix"))
 	http_utils.Assert(t, !match, "match where no wanted")
 
+	// leere Segmente in Parametern verbieten
+	match, _, _ = compare(NewSegments("/api/{id}"), NewUriPath("/api//123"))
+	http_utils.Assert(t, !match, "match where no wanted")
+
 	match, _, _ = compare(NewSegments("/*"), NewUriPath("/only/first/is/matched"))
 	http_utils.Assert(t, !match, "match where no wanted")
 
@@ -69,12 +73,14 @@ func TestNoMatches(t *testing.T) {
 func TestParameterExtraction(t *testing.T) {
 
 	_, _, params := compare(NewSegments("/api/context"), NewUriPath("/api/context"))
-	http_utils.Assert(t, len(params) == 0, "parmas error")
+	http_utils.Assert(t, len(params) == 0, "params error")
 
 	_, _, params = compare(NewSegments("/api/{id}"), NewUriPath("/api/123"))
-	http_utils.Assert(t, params["id"] == "123", "parmas error")
+	http_utils.Assert(t, params["id"] == "123", "params error")
 
-	_, _, params = compare(NewSegments("/api/{id}}"), NewUriPath("/api/"))
-	http_utils.Assert(t, params["id"] == "", "parmas error")
+	// Empty parameters are not allowed - this should not match
+	match, _, params := compare(NewSegments("/api/{id}"), NewUriPath("/api/"))
+	http_utils.Assert(t, !match, "empty parameter should not match")
+	http_utils.Assert(t, len(params) == 0, "params should be empty for non-match")
 
 }
