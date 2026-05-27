@@ -109,15 +109,16 @@ func compare(segments Segments, path UriPath) (match bool, matched UriPath, para
 		j++
 	}
 	for i < len(segments) && j < len(path) {
-		// Reject empty segments in the middle of the path (e.g., from "//" in URL)
-		if len(path[j]) == 0 {
-			return false, matched, params
-		}
 		seg := segments[i]
 		// Skip empty segments in segments (e.g., from "//" in template)
 		if len(seg.value) == 0 {
 			i++
 			continue
+		}
+		// Reject empty segments in the middle of the path (e.g., from "//" in URL)
+		// But allow empty segments at the end if matched by wildcard
+		if len(path[j]) == 0 && !seg.IsWildcard() && !seg.IsGlobalWildcard() {
+			return false, matched, params
 		}
 		if param, paramName := seg.IsParam(); param {
 			if len(path[j]) == 0 {
