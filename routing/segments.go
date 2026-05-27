@@ -74,7 +74,11 @@ func (segments Segments) Print(params map[string]string) string {
 	for _, segment := range segments {
 		uriPath = append(uriPath, segment.Print(params))
 	}
-	return strings.Join(uriPath, "/")
+	path := strings.Join(uriPath, "/")
+	if len(path) > 0 {
+		path = "/" + path
+	}
+	return path
 }
 
 func (segments Segments) Extend(path Segments) Segments {
