@@ -74,11 +74,7 @@ func (segments Segments) Print(params map[string]string) string {
 	for _, segment := range segments {
 		uriPath = append(uriPath, segment.Print(params))
 	}
-	path := strings.Join(uriPath, "/")
-	if len(path) > 0 {
-		path = "/" + path
-	}
-	return path
+	return strings.Join(uriPath, "/")
 }
 
 func (segments Segments) Extend(path Segments) Segments {
@@ -106,25 +102,16 @@ func compare(segments Segments, path UriPath) (match bool, matched UriPath, para
 	params = make(Parameters)
 	matched = make(UriPath, 0)
 	i, j := 0, 0
-	// Skip leading empty segments in both segments and path
-	for i < len(segments) && len(segments[i].value) == 0 {
-		i++
-	}
+	// Skip leading empty segments in path
 	for j < len(path) && len(path[j]) == 0 {
 		j++
 	}
 	for i < len(segments) && j < len(path) {
-		seg := segments[i]
-		// Skip empty segments in segments (e.g., from "//" in template)
-		if len(seg.value) == 0 {
-			i++
-			continue
-		}
 		// Reject empty segments in the middle of the path (e.g., from "//" in URL)
-		// But allow empty segments at the end if matched by wildcard
-		if len(path[j]) == 0 && !seg.IsWildcard() && !seg.IsGlobalWildcard() {
+		if len(path[j]) == 0 {
 			return false, matched, params
 		}
+		seg := segments[i]
 		if param, paramName := seg.IsParam(); param {
 			if len(path[j]) == 0 {
 				// A parameter must have a non-empty value
@@ -135,21 +122,14 @@ func compare(segments Segments, path UriPath) (match bool, matched UriPath, para
 			i++
 			j++
 		} else if seg.IsGlobalWildcard() {
-			// Global wildcard matches the rest of the path (including empty)
+			// Global wildcard matches the rest of the path
 			matched = append(matched, path[j:]...)
 			return true, matched, params
 		} else if seg.IsWildcard() {
-			// Single wildcard matches one segment (including empty if at end)
-			if j >= len(path) {
-				// If no more path segments, wildcard can match empty
-				matched = append(matched, "")
-				i++
-				j++
-			} else {
-				matched = append(matched, path[j])
-				i++
-				j++
-			}
+			// Single wildcard matches one segment
+			matched = append(matched, path[j])
+			i++
+			j++
 		} else if seg.value == path[j] {
 			// Exact match
 			matched = append(matched, path[j])
@@ -160,6 +140,6 @@ func compare(segments Segments, path UriPath) (match bool, matched UriPath, para
 			return false, matched, params
 		}
 	}
-	// Check if we consumed all segments and path parts (no skipping of trailing empty segments)
+	// Check if we consumed all segments and path parts
 	return i == len(segments) && j == len(path), matched, params
 }
