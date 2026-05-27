@@ -155,6 +155,13 @@ func compare(segments Segments, path UriPath) (match bool, matched UriPath, para
 			return false, matched, params
 		}
 	}
-	// Check if we consumed all segments and path parts (no skipping of trailing empty segments)
+	// Skip trailing empty segments in both segments and path
+	for i < len(segments) && len(segments[i].value) == 0 {
+		i++
+	}
+	for j < len(path) && len(path[j]) == 0 {
+		j++
+	}
+	// Check if we consumed all segments and path parts
 	return i == len(segments) && j == len(path), matched, params
 }
