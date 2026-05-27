@@ -44,11 +44,10 @@ type Segments []Segment
 
 // NewSegments creates a Segments slice from a URL path template.
 // Example: NewSegments("/api/{id}") returns ["api", "{id}"].
+// Empty segments are preserved to maintain consistency with NewUriPath().
 func NewSegments(template string) (segments Segments) {
 	for _, value := range strings.Split(template, "/") {
-		if value != "" { // Skip empty segments
-			segments = append(segments, Segment{value})
-		}
+		segments = append(segments, Segment{value})
 	}
 	return segments
 }
@@ -88,13 +87,12 @@ func (segments Segments) Extend(path Segments) Segments {
 type UriPath []string
 
 // NewUriPath creates a UriPath from a URL path string.
+// Empty segments are preserved to allow validation in compare().
 func NewUriPath(path string) UriPath {
 	parts := strings.Split(path, "/")
 	result := make(UriPath, 0)
 	for _, part := range parts {
-		if part != "" { // Skip empty segments
-			result = append(result, part)
-		}
+		result = append(result, part)
 	}
 	return result
 }
@@ -103,8 +101,24 @@ func compare(segments Segments, path UriPath) (match bool, matched UriPath, para
 	params = make(Parameters)
 	matched = make(UriPath, 0)
 	i, j := 0, 0
+	// Skip leading empty segments in both segments and path
+	for i < len(segments) && len(segments[i].value) == 0 {
+		i++
+	}
+	for j < len(path) && len(path[j]) == 0 {
+		j++
+	}
 	for i < len(segments) && j < len(path) {
+		// Reject empty segments in the middle of the path (e.g., from "//" in URL)
+		if len(path[j]) == 0 {
+			return false, matched, params
+		}
 		seg := segments[i]
+		// Skip empty segments in segments (e.g., from "//" in template)
+		if len(seg.value) == 0 {
+			i++
+			continue
+		}
 		if param, paramName := seg.IsParam(); param {
 			if len(path[j]) == 0 {
 				// A parameter must have a non-empty value
@@ -115,14 +129,21 @@ func compare(segments Segments, path UriPath) (match bool, matched UriPath, para
 			i++
 			j++
 		} else if seg.IsGlobalWildcard() {
-			// Global wildcard matches the rest of the path
+			// Global wildcard matches the rest of the path (including empty)
 			matched = append(matched, path[j:]...)
 			return true, matched, params
 		} else if seg.IsWildcard() {
-			// Single wildcard matches one segment
-			matched = append(matched, path[j])
-			i++
-			j++
+			// Single wildcard matches one segment (including empty if at end)
+			if j >= len(path) {
+				// If no more path segments, wildcard can match empty
+				matched = append(matched, "")
+				i++
+				j++
+			} else {
+				matched = append(matched, path[j])
+				i++
+				j++
+			}
 		} else if seg.value == path[j] {
 			// Exact match
 			matched = append(matched, path[j])
@@ -133,6 +154,6 @@ func compare(segments Segments, path UriPath) (match bool, matched UriPath, para
 			return false, matched, params
 		}
 	}
-	// Check if we consumed all segments and path parts
+	// Check if we consumed all segments and path parts (no skipping of trailing empty segments)
 	return i == len(segments) && j == len(path), matched, params
 }
